@@ -1,11 +1,11 @@
 ---
-name: patent-fee-monitor
-description: "专利年费监控：采集国家知识产权局案件查询平台的应缴年费数据，推送到用户的 SaaS 年费监控产品（MCP）。浏览器操作依赖 BrowserSkill，未安装时引导用户安装。"
-version: 1.0.0
+name: 专利官方年费监控
+description: "采集国家知识产权局案件查询平台的应缴年费数据，推送到用户的 SaaS 年费监控产品（MCP）。浏览器操作依赖 BrowserSkill，未安装时引导用户安装。"
+version: 1.0.1
 user-invocable: true
 ---
 
-# 专利年费监控（patent-fee-monitor）
+# 专利官方年费监控
 
 从用户处获取已授权专利申请号清单 → 引导用户登录 CNIPA 案件查询平台 → 逐条采集著录、授权公告日、未缴年费（前 2 条）与已缴年费（前 2 条）→ 经 MCP 推送到 SaaS。
 
