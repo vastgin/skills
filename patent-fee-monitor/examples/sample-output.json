@@ -1,0 +1,98 @@
+{
+  "_说明": "契约示例（2026-10-13 按 push_fee_batch MCP schema 复核）。字段名与语义一律以服务端 DTO 为准；不要拿 list_fee_ledgers 的返回列名做对照——那是平台计算引擎的只读输出，与上报字段不同源。",
+  "_字段映射提醒": "采集 JSON 与 payload 完全同构：票据号码两边都叫 voucherNo、缴费日期都叫 paidTime，无需任何改名映射。",
+
+  "batchId": "fee-20261013-145027-01",
+  "dataSource": "cpquery",
+  "collectedAt": "2026-10-13T14:50:27+08:00",
+  "total": 1,
+  "succeeded": 1,
+  "failed": 0,
+  "patents": [
+    {
+      "applyNo": "2021109480292",
+      "queryStatus": "ok",
+      "failReason": "",
+      "name": "文本处理方法、装置、计算机设备和存储介质",
+      "applyDate": "2021-08-18",
+      "grantDate": "2024-03-19",
+      "legalStatus": 2,
+      "holderNames": "某某有限公司",
+      "type": 1,
+      "fees": [
+        {
+          "feeYear": 6,
+          "amountDue": 1200.00,
+          "amountRaw": "1200",
+          "lateDueDate": "2027-02-18",
+          "feeStatus": "UNPAID",
+          "paidAmount": 0,
+          "paidTime": "",
+          "voucherNo": "",
+          "lateFeeLadder": [
+            { "windowStart": "2026-09-19", "windowEnd": "2026-10-19", "lateFee": 60.0, "total": 1260.0 },
+            { "windowStart": "2026-10-20", "windowEnd": "2026-11-18", "lateFee": 120.0, "total": 1320.0 },
+            { "windowStart": "2026-11-19", "windowEnd": "2026-12-18", "lateFee": 180.0, "total": 1380.0 },
+            { "windowStart": "2026-12-19", "windowEnd": "2027-01-18", "lateFee": 240.0, "total": 1440.0 },
+            { "windowStart": "2027-01-19", "windowEnd": "2027-02-18", "lateFee": 300.0, "total": 1500.0 }
+          ],
+          "dedupKey": "2021109480292|发明专利第6年年费|2027-02-18"
+        },
+        {
+          "feeYear": 7,
+          "amountDue": 2000.00,
+          "amountRaw": "2000",
+          "lateDueDate": "2027-09-20",
+          "feeStatus": "UNPAID",
+          "paidAmount": 0,
+          "paidTime": "",
+          "voucherNo": "",
+          "lateFeeLadder": [],
+          "dedupKey": "2021109480292|发明专利第7年年费|2027-09-20"
+        },
+        {
+          "feeYear": 5,
+          "amountDue": 1200.00,
+          "amountRaw": "1200",
+          "lateDueDate": "",
+          "feeStatus": "PAID",
+          "paidAmount": 1200.00,
+          "paidTime": "2025-04-03",
+          "voucherNo": "0032887979",
+          "lateFeeLadder": [],
+          "dedupKey": "2021109480292|发明专利第5年年费|2025-04-03"
+        },
+        {
+          "feeYear": 4,
+          "amountDue": 1200.00,
+          "amountRaw": "1200",
+          "lateDueDate": "",
+          "feeStatus": "PAID",
+          "paidAmount": 1200.00,
+          "paidTime": "2024-06-04",
+          "voucherNo": "0009799633",
+          "lateFeeLadder": [],
+          "dedupKey": "2021109480292|发明专利第4年年费|2024-06-04"
+        }
+      ]
+    }
+  ],
+
+  "_已作废的旧字段": {
+    "factType": "已作废 —— 滞纳金不再走 factType=3 单独成行，改由 lateFeeLadder 承载",
+    "amount": "已作废 → amountDue",
+    "dueDate": "已作废 → lateDueDate",
+    "applicant": "已作废 → holderNames",
+    "paid": "已作废 → feeStatus（0204 起，枚举字符串取代布尔）",
+    "lateFee": "已作废 → lateFeeLadder（不允许只给当期金额）"
+  },
+
+  "_其他约束": {
+    "batchLimit": "单批最多 10 件专利，超出分批并给 batchId 加后缀",
+    "collectWindow": "只收缴费时点落在 [今天-24个月, 今天+36个月] 内的费用，窗口外计入 filtered",
+    "perPatentLimit": "同一专利一次最多 2 条待缴 + 2 条已缴，超出计入 filtered",
+    "paidRowRule": "PAID 只用于把系统已有的待缴行置为已缴；无对应行则「已缴不建行」丢弃，计入 filtered",
+    "filteredVsRejected": "filtered 不计入 rejected，不需要补推",
+    "silentDrop": "DTO 没有的字段会被静默忽略，不报错不计 rejected —— 验证新字段必须推完回查台账"
+  }
+}

@@ -1,0 +1,169 @@
+# SaaS 上报契约（push_fee_batch payload）
+
+权威来源：**本文件即为上报契约的权威机器可读版**，逐条经真实推送校验（2026-09-22 与 09-23 两轮，累计 633 条年费全部 `accepted`）。
+
+历史出处：原 spec `<specweave>/increments/0001-skillcpquerysaas-mcp/spec.md`「上报契约」节 —— **该文件在本机已不存在**（`~/.specweave` 为空目录）。若其日后恢复且与本文件冲突，以**实测结果**为准并回改本文件，不要盲信旧文档。
+
+## 信封
+
+```yaml
+batchId:    { type: string, required: true, pattern: "fee-<yyyymmdd-HHmmss>" }
+dataSource: { type: string, required: true, const: cpquery }
+collectedAt: { type: string, required: true, format: iso8601-with-tz }  # 2026-09-22T14:35:12+08:00
+total:      { type: int, required: true }
+succeeded:  { type: int, required: true }   # succeeded + failed == total
+failed:     { type: int, required: true }
+patents:    { type: array<Patent>, required: true }
+```
+
+## 案件级 Patent
+
+```yaml
+applyNo:      { type: string, required: true,
+                normalize: "大写 + 去空格/连字符/小数点，保留校验位(X或数字)；202310000123.4 → 2023100001234" }
+queryStatus:  { type: enum, required: true, values: [ok, not_found, not_granted, error] }
+failReason:   { type: string|null, required: false,
+                rules: "可重试的费用读取失败用前缀 RETRYABLE: ；not_found/not_granted 给人话原因" }
+name:         { type: string, required: false }        # 发明名称
+applyDate:    { type: string, required: false, format: "YYYY-MM-DD" }
+legalStatus:  { type: int, required: false, mapping: {申请中:1, 专利权维持:2, 已授权:2, 驳回:3, 撤回:4, 视为撤回:4, 权利终止:5}, outOfDict: 0 }  # 0=未知，提醒引擎按不提醒/需人工处理
+applicant:    { type: string, required: false, join: "、" }  # 多申请人顿号拼接
+type:         { type: int, required: false, values: {发明: 1, 实用新型: 2, 外观设计: 3},
+                derive: "按**归一后** applyNo 第 5 位：1→1 / 2→2 / 3→3 / 8→1(PCT发明) / 9→2(PCT实用新型)；其他值不识别，报错、禁止猜测",
+                note: "该列历史上曾为 NOT NULL 而契约缺失（见 serverGap / typeFieldNote）。参考实现附带此字典码；推导不出的记录进 report.problems 交人工确认，禁止用默认值兜底" }
+fees:         { type: array<FeeItem>, required: false }
+```
+
+## 上报契约（2026-10-13 按 `push_fee_batch` MCP schema 全面复核）
+
+> ⚠️ **对齐基准说明（重要，勿再犯）**
+>
+> 本节字段名与语义**一律以 `push_fee_batch` 的 MCP 工具 schema（服务端 DTO）为准**。
+> **不要拿 `list_fee_ledgers` 的返回列名做对照** —— 那是平台计算引擎的**只读输出**，
+> 工具描述已写明「金额与状态由平台计算引擎维护，回传数据不影响清单」。
+> 台账里的 `dueDate` / `payableAmount` / `lateFee` / `lateFeeOfficial` 等列
+> 由服务端按规则**自行推算**，与上报字段**不同源**（实测 `dueDate` 由申请日+规则算出，
+> 与页面「缴费截止日」不是同一口径）。台账 `source=3(官方)` 的行更与本次上报无关。
+> 台账列名只在验证「字段是否真正落库」时有参考价值，**不能用于定义上报契约**。
+
+```yaml
+Patent:
+  applyNo:      { required: true, note: "归一：大写/去空格连字符小数点/保留校验位；采集端已归一，服务端再兜底" }
+  queryStatus:  { required: true, enum: [ok, not_found, not_granted, error] }
+  failReason:   { required: true, type: string, note: "error 用 RETRYABLE: 前缀表示可重试补采" }
+  name:         { required: true }
+  applyDate:    { required: true, format: date }
+  legalStatus:  { required: true, type: int, note: "字典码 patent_legal_status 0..5，表外/未知传 0" }
+  holderNames:  { required: true, note: "专利权人；多权利人可整体拼接，拆分与归一化由服务端负责；留空=本次不带权利人" }
+  grantDate:    { required: true, format: date, note: "**授权日**，决定减缓区间与授权当年年费；未授权/表外留空（不会清空台账已有值）" }
+  type:         { required: true, type: int, note: "字典码 patent_type：**1 发明 / 2 实用新型 / 3 外观设计**；缺省时服务端按 CN 申请号种类位推断，推断不出按发明。客户端仍按归一后 applyNo 第 5 位推导（1→1 / 2→2 / 3→3 / 8→1 / 9→2），推导不出报错、禁止默认值兜底" }
+  fees:         { required: true, array<FeeItem> }
+
+FeeItem:            # DTO 中以下 10 项**全部 required**
+  feeYear:      { required: true, type: int, note: "应缴年度 1..20" }
+  amountDue:    { required: true, type: number, note: "应缴年费（元）；滞纳金单独行时不填；0=官方明示 0" }
+  amountRaw:    { required: true, type: string, note: "页面原文金额（trace，不落库）" }
+  lateDueDate:  { required: true, format: date, note: "可空；明确滞纳时为**滞纳期截止日**，否则为缴费截止日(滞纳前)" }
+  feeStatus:    { required: true, enum: [UNPAID, DEFERRED, REDUCED, PAID],
+                  note: "0204 起取代原 `paid` 布尔字段，成为已缴表态的**唯一切入口**；缺省=官方未表态" }
+  paidAmount:   { required: true, type: number, note: "已缴金额；feeStatus=PAID 时作为行金额，可空" }
+  dedupKey:     { required: true, note: "applyNo|费用种类原文|dueDate" }
+  paidTime:     { required: true, format: date, note: "缴费日期，可空；feeStatus=PAID 时带上，**携带即覆盖行上已有值**" }
+  voucherNo:    { required: true, note: "凭证号 ≤64，可空；携带即覆盖行上已有值" }
+  lateFeeLadder:{ required: true, array, note: "官方滞纳金阶梯；**未滞纳或官方未给时留空 []**。不允许只给一个「当期滞纳金额」，需按规则兜底取数" }
+```
+
+### 字段名映射（采集 JSON → payload）
+
+**2026-10-13 起：采集端与 payload 完全同构，不需要任何改名映射。**
+
+| 采集 JSON | payload | 说明 |
+|---|---|---|
+| `voucherNo` | `voucherNo` | **同名**。票据号码（凭证），采集端已直接用服务端 DTO 的字段名 |
+| `paidTime` | `paidTime` | 同名，无需映射 |
+| `invoiceNo` | `voucherNo` | **旧采集结果的别名**（取自页面「票据号码」列名），仅兼容读取，新采集不再产出 |
+| `payDate` | `paidTime` | 更早的旧别名，兼容读取 |
+
+> 统一命名的理由：字段多一层映射就多一处可能漏改的环节，且改名让采集 JSON 与 payload
+> 对不上号、排查问题时容易误判「字段丢了」。**页面列名是「票据号码」，但服务端契约叫
+> `voucherNo`，以契约为准**——这与其他所有字段的口径一致。
+
+### required 校验的实测口径（2026-10-13）
+
+`paidTime` / `voucherNo` 在 DTO 里标为 required，但**实测服务端并未强校验未缴行的这两项**：
+50 件 × 4 行 = 200 条费用、5 个批次推送，`received=200 accepted=139 rejected=[]filtered=61`，
+零 rejected ——而当时未缴行（100 条）**完全不带**这两个字段。
+
+尽管如此，`push_mcp.py` 仍对未缴行**显式补空串**，以满足契约形状、避免将来服务端收紧校验。
+**这不等于「省略是安全的」**：DTO 标注就是 required，契约形状要守满。
+
+### 其他实测约束（来自工具描述）
+
+```yaml
+batchLimit:      "单批最多 10 件专利，超过分批（batchId 加后缀，如 xxx-part1）——push_mcp.py 按 10切分"
+collectWindow:   "只收缴费时点落在 [今天−24个月, 今天+36个月] 内的费用，窗口外计入 filtered（多推也不会入库）"
+perPatentLimit:  "同一件专利一次最多 2 条待缴 + 2 条已缴（按官方页面「最近优先」截取），超出计入 filtered"
+paidRowRule:     "官方明示已缴(PAID)只用于把系统里**已有**的待缴行置为已缴；该年度本无清单行则「已缴不建行」丢弃，计入 filtered"
+paidNotClear:    "改回未缴时服务端只改 status，**不清** paidAmount/paidTime/voucherNo，且无法通过 MCP 清空"
+filteredVsRejected: "filtered 不计入 rejected，**不需要补推**"
+silentDrop:      "「接受」≠「入库」：DTO 里没有的字段会被**静默忽略**（不报错、不计 rejected）。验证新字段必须推完回查台账"
+```
+
+## 旧契约（已失效，仅供溯源）
+
+```yaml
+factType:  { type: int, required: true, values: {年费: 1, 年费滞纳金: 3},
+             rule: "其他费用种类（恢复费/复审费/请求费…）丢弃，不进批次；发 0/2 必 400" }
+feeYear:   { type: int, required: true, nullable: false,   # 唯一键一部分，null 必 400
+             fallback: ["正则提取费用种类文案 (第N年度)", "dueDate 相对 applyDate 反推年度"],
+             onBothFail: discard-item }                    # 整笔丢弃，禁止 null
+amount:    { type: number, required: true, unit: CNY元, scale: 2,
+             sanitize: "去千分位/￥/¥/元/空格", validate: "0 < amount <= 1000000，否则整笔丢弃" }
+amountRaw: { type: string, required: false }               # 页面原文，对账用
+dueDate:   { type: string, required: false, format: "YYYY-MM-DD",
+             validate: "1985 <= 年份 <= 当前年+20；非法置空（若置空致 feeYear 兜底失败→整笔丢弃）" }
+feeStatus: { type: enum, required: false, values: {未缴: UNPAID, 缓缴: DEFERRED, 减缴: REDUCED},
+             onOutOfDict: discard-item,
+             note: "服务端只接受 UNPAID/DEFERRED/REDUCED（实测 UNKNOWN 被 400 拒）；已缴清状态（费足=已缴费 / 已缴 / 已缴费）整行丢弃，属正常丢弃不计失败；禁止改写状态凑合" }
+dedupKey:  { type: string, required: true, pattern: "{applyNo}|{费用种类原文}|{dueDate}",
+             note: "applyNo 必须用归一后的值；幂等键，重复推送覆盖不新增" }
+```
+
+## Token 获取（Step 0 之前）
+
+```yaml
+preferred: "用户在 WorkBuddy MCP 配置中为 open-api 服务器设置请求头 Authorization: Bearer <token>（agent 不接触值）"
+localTest: "用户写入 .env：IPBUDDY_SAAS_TOKEN=<token>（gitignored）；agent 用 grep -q 确认存在不打印值，curl 以 $(...) 内联展开"
+forbidden: "要求用户把 token 粘贴进对话；若用户坚持，用后提醒去 SaaS 轮换"
+```
+
+## MCP 工具面（http://localhost:48080/open-api/mcp，Streamable HTTP）
+
+```yaml
+auth:      "Authorization: Bearer <token>；token 只在头部，不进 payload/日志/文件/对话正文"
+check_token:     { in: {}, out: {valid: bool, tenant: string} }          # Step 0 必调
+push_fee_batch:  { in: <本文件所述 payload>, out: {received: int, accepted: int, rejected: [dedupKey]} }
+idempotency:     "SaaS 按 batchId+dedupKey 去重，同键覆盖不报错（2026-09-22 实测：同 batchId 原样重推返回同样的 accepted 数，未重复入库）；rejected 明细可原样补推"
+pushFailureShape: "注意：push_fee_batch 失败时**不返回契约承诺的 {received, accepted, rejected}**，而是裸抛数据库异常文本（`ERROR: <PG 异常>` + `详细：<DETAIL>`）。所以「按 rejected 明细补推」只适用于参数校验级拒绝；写库级崩溃压根到不了那一步，只能整批修复后重推"
+failReasonNote:  "failReason 在 MCP 工具 schema 中被列为 required 且 type=string，与本文件 required:false / nullable 的口径冲突（尚未经服务端验证）；发送时先传 null，若被 400 拒绝则改传空串"
+scopeNote:       "check_token 不校验 scope，valid=true 不代表有写入权限；缺少 patent:fee:ingest 时 push_fee_batch 必被拒，属确定性错误，不重试，停下找用户补授权"
+serverGap:       "已知服务端缺陷（2026-09-22 实测，同日 20:08 **已修复**）：patent_info.type（专利类型）曾为 NOT NULL 而 push_fee_batch 契约/DTO 无该字段——工具 schema 由服务端 DTO 自动生成，客户端无法补传，服务端 INSERT 留空即违反约束。当时表现为：费用校验全过、写库时整批失败并报 null value in column type，新专利无法首次入库（费用数据被整批回滚）。修复后同一 payload 原样重推即通过（received=11 accepted=11 rejected=[]），无需重新采集"
+serverGapDetail: "当时的排除过程（可复用于任何「契约里没有但表要求」的字段）：分别挂 type=发明专利 与 patentType=INVENTION 各推一次，服务端均静默忽略（不报 schema 错、仍报 null），证明 DTO 确无该字段、客户端无补传通道。另：报错附带的 Failing row contains (...) 会按表定义顺序列出全部列，可用来反查列序（本次据此确认 type 为第 3 列，紧随 apply_no）。失败批次整批回滚，但 id 序列每次递增——修好后主键会跳号，不是数据丢失"
+patentTypeRule:  "`type` 的正确口径是 **int 字典码**（DTO `patent_type`：1 发明 / 2 实用新型 / 3 外观设计），由归一后 applyNo 第 5 位推导：1→1 / 2→2 / 3→3 / 8→1(PCT 发明) / 9→2(PCT 实用新型)；其他值应报错而非猜测。推导必须在归一后取位（去 CN 前缀/小数点/空格/连字符）。⚠️ **旧文档把映射写成字符串 `1→INVENTION / 2→UTILITY_MODEL / 3→DESIGN`，那是错的** —— 那是服务端内部枚举名、**不是上报值**，上报必须是 int（2026-10-13 按 DTO schema 复核纠正）。该列同时是 fee_rule 的查表键，取错会导致年费规则整体错配，故不可用默认值兜底"
+typeFieldNote:   "`type` 字段现状（2026-09-23 复核）：修复前该列为 NOT NULL 而契约/DTO 无此字段 → 客户端无法补传、整批回滚（详见 serverGap）。修复后实测：附带 `type` 的 5 个批次（专利 10/10/10/10/9，年费 105/123/135/144/126）**全部 accepted**。因参考实现始终附带该字段，**无法区分「服务端自行推导」与「接受客户端传入」** —— 在能区分之前，参考实现继续附带（带上无副作用；缺失则有历史风险）。禁止用默认值或中文类型名兜底：该列同时是 fee_rule 查表键，错值会让年费规则整体错配"
+lateFeeLadderNote: "2026-10-03 实测：FeeItem.lateFeeLadder 已被服务端接受（发明专利第6年年费行挂 5 档滞纳窗口，received=15 accepted=15）。
+  官方「应缴滞纳金信息」表的逐月窗口（缴费时段起止 + 滞纳金 + 总计=本金+滞纳金）可直接映射为该数组；
+  当期档的滞纳金同时写入 lateFee 单值字段，无滞纳的行传 lateFeeLadder=[]。
+  旧口径「滞纳金按 factType=3 丢弃」自此作废 —— 滞纳金不再丢弃，随对应年费行上报。
+  `collect_one.py` 已自动产出该字段（解析「应缴滞纳金信息」表，拆中文时段为两个 ISO 日期，
+  并按「当前年费金额」挂到最早未缴年度那一行）；无滞纳窗口时传 `[]`"
+implementationGap: "契约全集示例见 `examples/sample-output.json`。当前参考实现（`collect_one.py`）**只把 `queryStatus=ok` 的专利写进采集结果目录**，可用于上报；采集失败项（not_found / not_granted / error）只在进度行里体现，未产出对应 JSON。若 SaaS 需要「已尝试查询但查无」的记录，需先确认口径再补实现"
+```
+
+## 单案数据边界（防脏数据）
+
+```yaml
+maxFeeItemsPerPatent: 50        # 超出=整页误采，整案记 error + RETRYABLE:应缴明细异常
+dedupeWithinPatent: "(费用种类, dueDate, 金额)"
+amountSanity: {min: 0.01, max: 1000000}
+```
