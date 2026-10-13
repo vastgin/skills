@@ -1,6 +1,6 @@
 # vastgin skills
 
-vastgin 维护的 Agent Skill 集合，供 CodeBuddy / WorkBuddy 等 Agent 客户端按需加载，把需要人参与、步骤繁复的线上作业固化为可复用、可审计的工作流。
+vastgin 即**维思勤**（官网 [www.vastgin.com](https://www.vastgin.com)）。本仓库是 vastgin 维护的 Agent Skill 集合，供 CodeBuddy / WorkBuddy 等 Agent 客户端按需加载，把需要人参与、步骤繁复的线上作业固化为可复用、可审计的工作流。
 
 每个子目录 = 一个技能（含 `SKILL.md` 入口、`references/` 参考资料、`examples/` 契约样例）。
 
