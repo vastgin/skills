@@ -74,3 +74,7 @@ python3 references/scripts/push_mcp.py --dir out --dry-run            # 上报�
 - **不确定时归 `error`**：不误判为终态（如 `not_granted`），保留重试自愈空间。
 
 各技能的完整红线与交付边界见其 `SKILL.md`。
+
+## License
+
+本项目以 [MIT License](LICENSE) 开源。
