@@ -1,6 +1,7 @@
 ---
 name: patent-fee-monitor
 description: "专利年费监控：采集国家知识产权局案件查询平台的应缴年费数据，推送到用户的 SaaS 年费监控产品（MCP）。浏览器操作依赖 BrowserSkill，未安装时引导用户安装。"
+version: 1.0.0
 user-invocable: true
 ---
 
