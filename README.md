@@ -25,6 +25,23 @@ patent-fee-monitor/          # 专利年费监控
         ├── push_mcp.py          # 直连 MCP 端点上报
         ├── make_report.py       # 对账报告生成
         └── run_quiet.sh         # 一键静默采集
+patent-fee-briefing/         # 专利年费时时报（只读播报）
+├── SKILL.md
+├── examples/
+│   └── sample-output.json           # get_fee_weekly_report 返回样例
+└── references/
+    ├── mcp-contract.md              # 工具契约与故障处置
+    └── scripts/
+        └── fetch_briefing.py        # 取时时报并打印 markdown
+patent-fee-charts/          # 专利年费分析图表（终端渲染）
+├── SKILL.md
+├── examples/
+│   └── sample-output.json           # query_report 返回样例（含终端渲染结果）
+└── references/
+    ├── report-definition-playbook.md # 报表定义剧本：字段白名单、常用问法、口径纪律
+    ├── terminal-render-rules.md      # 图表 → 终端文本的降级规则
+    └── scripts/
+        └── render_chart.py           # 调 query_report 并把结果渲染成终端文本
 ```
 
 ## 技能一览
@@ -32,6 +49,8 @@ patent-fee-monitor/          # 专利年费监控
 | 技能 | 说明 | 入口 |
 |---|---|---|
 | `patent-fee-monitor` | 从国家知识产权局（CNIPA）案件查询平台采集已授权专利的年费数据（著录、授权公告日、未缴年费前 2 条、已缴年费前 2 条、滞纳金阶梯），经 MCP 推送到 SaaS 年费监控产品 | [`patent-fee-monitor/SKILL.md`](patent-fee-monitor/SKILL.md) |
+| `patent-fee-briefing` | 随时播报待缴年费概览（指标区四档 + 截止日升序明细），内容与 SaaS「年费周报」邮件预览的功能区块完全一致；**只读**，经 MCP `get_fee_weekly_report` 取数 | [`patent-fee-briefing/SKILL.md`](patent-fee-briefing/SKILL.md) |
+| `patent-fee-charts` | 用与智小勤**同一条链路**的报表引擎做年费分析（按国别/年度/状态/币种分组），把图表降级成终端可读的表格与字符条形图；**只读**，经 MCP `list_report_datasets` + `query_report` 取数 | [`patent-fee-charts/SKILL.md`](patent-fee-charts/SKILL.md) |
 
 ## 安装使用
 
@@ -62,6 +81,22 @@ python3 references/scripts/push_mcp.py --dir out --dry-run            # 上报�
 ```
 
 脚本跨平台（纯 Python + 页面 JS），Windows 用 `install.ps1` 装 `bsk.exe` 并在 Git Bash 或 PowerShell 中运行。
+
+`patent-fee-briefing` 与 `patent-fee-charts` 是**只读**技能，不需要 BrowserSkill，
+只依赖 MCP 配置（同一份 `~/.workbuddy/mcp.json`，server 名 `IPBuddy-Server`）：
+
+```sh
+cd patent-fee-briefing
+python3 references/scripts/fetch_briefing.py            # 打印年费时时报（markdown）
+python3 references/scripts/fetch_briefing.py --check    # 只预检凭证
+
+cd ../patent-fee-charts
+python3 references/scripts/render_chart.py --definition def.json   # 执行报表定义并渲染成终端文本
+python3 references/scripts/render_chart.py --list                  # 列出可查数据集与字段
+```
+
+凭证页：SaaS「智小勤 › 能力扩展 › MCP接入凭证」。播报侧的 scope 是 `patent:fee:read`，
+图表侧是 `report:query:read`，两者独立授权（最小权限）。
 
 ## 设计红线
 
