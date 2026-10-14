@@ -1,0 +1,96 @@
+{
+  "_comment": "query_report 的返回样例（0260）。request 即报表定义；返回 {success, data, error, took}，data 与服务端智小勤走同一条链路。",
+  "_request": {
+    "datasetId": "patent-fee-ledger",
+    "chartType": "bar",
+    "dimensions": ["officeCountry"],
+    "measures": [{ "field": "id", "aggregation": "count" }],
+    "filters": [{ "field": "status", "operator": "eq", "value": 0 }],
+    "sort": [{ "field": "m0", "direction": "desc" }],
+    "options": { "title": "按国别统计待缴年费笔数" }
+  },
+  "success": true,
+  "data": {
+    "type": "chart",
+    "dataset": {
+      "columns": [
+        { "key": "d0", "label": "受理局国别", "role": "dimension", "field": "officeCountry" },
+        { "key": "m0", "label": "笔数", "role": "measure", "field": "id", "aggregation": "count" }
+      ],
+      "dimensionCount": 1,
+      "rows": [
+        { "d0": "CN", "m0": 42 },
+        { "d0": "JP", "m0": 11 },
+        { "d0": "KR", "m0": 5 }
+      ],
+      "truncated": false
+    },
+    "view": {
+      "chartType": "bar",
+      "categories": ["CN", "JP", "KR"],
+      "series": [
+        { "name": "笔数", "data": [42, 11, 5] }
+      ],
+      "measureLabels": ["笔数"],
+      "categoryLabel": "受理局国别",
+      "isSplit": false
+    }
+  },
+  "error": null,
+  "took": 12,
+  "_rendered": "| 受理局国别 | 笔数 |\n| --- | --- |\n| CN | 42 |\n| JP | 11 |\n| KR | 5 |\n\n笔数（每格 ≈ 2.10）\nCN             ████████████████████  42\nJP             █████  11\nKR             ██  5",
+  "_failureSample": {
+    "success": false,
+    "data": null,
+    "error": {
+      "code": "INVALID_BINDING",
+      "message": "「饼图」要求维度 1 个、指标 1 个"
+    },
+    "took": 1
+  },
+  "_listSample": {
+    "_comment": "list_report_datasets 返回（节选）：字段元数据是产出定义的唯一合法取值来源",
+    "items": [
+      {
+        "id": "patent-fee-ledger",
+        "name": "年费费用清单",
+        "description": "一行 = 一个专利的一个应缴年度；金额按币种原币存储，不可跨币种求和",
+        "keywords": ["年费", "费用清单", "台账"],
+        "defaultDimensions": ["feeCalendarYear"],
+        "defaultChartType": "bar",
+        "fields": [
+          {
+            "name": "officeCountry",
+            "label": "受理局国别",
+            "dataType": "string",
+            "role": "dimension",
+            "filterable": true
+          },
+          {
+            "name": "feeCalendarYear",
+            "label": "费款所属年",
+            "dataType": "number",
+            "role": "dimension",
+            "filterable": true
+          },
+          {
+            "name": "status",
+            "label": "缴纳状态",
+            "dataType": "number",
+            "role": "dimension",
+            "filterable": true
+          },
+          {
+            "name": "amountDue",
+            "label": "应缴金额",
+            "dataType": "number",
+            "role": "measure",
+            "aggregations": ["sum", "avg", "min", "max"],
+            "defaultAggregation": "sum",
+            "currencyBound": true
+          }
+        ]
+      }
+    ]
+  }
+}
