@@ -1,7 +1,8 @@
 # 报表定义剧本
 
 本文件是 agent 产出报表定义的作业手册。**字段名一律以 `list_report_datasets` 的实时返回为准**，
-本文只讲方法与纪律（字段清单会随服务端演进，不要背下本文种的字段名当白名单）。
+本文只讲方法与纪律；文中的字段表是**某个时点的快照**（会随服务端演进），不要背下来当白名单
+（本节按 0265 时点的年费费用清单数据集订正过一次，就因为旧快照写了数据集里根本不存在的维度）。
 
 ## 一、两个 MCP 工具
 
@@ -39,13 +40,13 @@
 {
   "datasetId": "patent-fee-ledger",
   "chartType": "bar",
-  "dimensions": ["officeCountry"],
+  "dimensions": ["currency"],
   "colors": [],
   "measures": [{ "field": "id", "aggregation": "count" }],
   "filters": [{ "field": "status", "operator": "eq", "value": 0 }],
   "sort": [{ "field": "m0", "direction": "desc" }],
   "limit": 10,
-  "options": { "title": "按国别统计待缴年费笔数" }
+  "options": { "title": "按币种统计待缴年费笔数" }
 }
 ```
 
@@ -58,22 +59,32 @@
 
 | 用户问法 | datasetId | chartType | dimensions | measures |
 |---|---|---|---|---|
-| 年费按国别分布 | 年费费用清单 | `bar` | `officeCountry` | count(笔数指标) |
+| 各币种待缴笔数 | 年费费用清单 | `bar` | `currency` | count(笔数指标) |
+| 中国与海外各多少 | 年费费用清单 | `bar` | `currency` | count 或 sum(金额) —— 数据集没有国别列，来源也分不出国别 |
 | 哪几年待缴最多 | 年费费用清单 | `bar` | `feeCalendarYear` | count + `filters: status=0` |
 | 待缴和已缴各多少 | 年费费用清单 | `pie` | `status` | count |
 | 各币种应缴金额 | 年费费用清单 | `bar` | `currency` | sum(金额指标，currencyBound) |
+| 按清单行来源分布 | 年费费用清单 | `bar` | `sourceLabel` | count（标签列**不能**进 filters） |
 | 来张年费报表（没给维度） | 年费费用清单 | `defaultChartType` | `defaultDimensions` | 与默认视图匹配的指标 |
 | 2026 年已缴明细 | 年费费用清单 | `table` | — | count 或金额，`filters: status=2 & feeCalendarYear=2026` |
 
-**维度取值**（以实时元数据为准，常见项）：
+**字段快照**（本技能 1.1.0 / SaaS 0265 时点；**实时清单请用 `list_report_datasets` 或 `--list` 拉取**，
+两者不一致时以工具返回为准）：
 
-| 字段 | 含义 | 口语锚点 |
-|---|---|---|
-| `officeCountry` | 受理局国别 | 国别 / 国家 / 中国美国日本 |
-| `feeCalendarYear` | 费款所属公历年 | 年份 / 2026 年 |
-| `status` | 缴纳状态 | 待缴 / 已缴 / 已放弃 |
-| `currency` | 币种 | 币种 / 人民币 / 美元 |
-| `feeYear` | 应缴年度（第 N 年） | 第几年 |
+| 字段 | 标签 | 类型 | 角色 | 可筛 | 含义 / 口语锚点 |
+|---|---|---|---|---|---|
+| `feeCalendarYear` | 费款所属年 | number | 维度 | 是 | 截止日所在公历年（年份 / 2026 年；默认时间口径） |
+| `feeYear` | 应缴年度 | number | 维度 | 是 | 专利的第 N 个年费年度（第几年） |
+| `status` | 缴纳状态 | number | 维度 | 是 | 0 待缴 / 2 已缴 / 3 已放弃 |
+| `currency` | 币种 | string | 维度 | 是 | 原币币种（人民币 / 美元…）；中国与海外只能靠它区分 |
+| `dueMonth` | 缴费截止月 | string | 维度 | 否 | 截止日推导的 `yyyy-MM`，派生列不可筛 |
+| `sourceLabel` | 清单行来源标签 | string | 维度 | 否 | 规则 / 应缴单 / 官方；派生列不可筛 |
+| `id` | 笔数 | number | 指标 | — | count（一笔 = 一专利一应缴年度） |
+| `payableAmount` | 应付金额 | number | 指标 | — | sum / avg / min / max，`currencyBound=true` |
+
+数据集内**没有**的维度（别照着别的报表猜）：国别 / 受理局、代理机构、申请人、缴费时间、
+时限档位 —— 国别与代理机构属于专利主数据（另一个数据集），本数据集刻意不 join；
+来源只有 `sourceLabel` 一列，其编码不入数据集。
 
 **指标选择**：算"多少个"用 `count`（通常绑主键字段）；算"多少钱"用 `sum` 绑金额字段，
 但**金额指标多为 `currencyBound=true`，必须同时把 `currency` 放进 `dimensions` 或 `colors`**。

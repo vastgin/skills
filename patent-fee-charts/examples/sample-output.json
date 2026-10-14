@@ -1,44 +1,97 @@
 {
-  "_comment": "query_report 的返回样例（0260）。request 即报表定义；返回 {success, data, error, took}，data 与服务端智小勤走同一条链路。",
+  "_comment": "query_report 的返回样例（0260；字段名按 0265 的年费费用清单数据集订正）。request 即报表定义；返回 {success, data, error, took}，data 与服务端智小勤走同一条链路。",
   "_request": {
     "datasetId": "patent-fee-ledger",
     "chartType": "bar",
-    "dimensions": ["officeCountry"],
-    "measures": [{ "field": "id", "aggregation": "count" }],
-    "filters": [{ "field": "status", "operator": "eq", "value": 0 }],
-    "sort": [{ "field": "m0", "direction": "desc" }],
-    "options": { "title": "按国别统计待缴年费笔数" }
+    "dimensions": [
+      "currency"
+    ],
+    "measures": [
+      {
+        "field": "id",
+        "aggregation": "count"
+      }
+    ],
+    "filters": [
+      {
+        "field": "status",
+        "operator": "eq",
+        "value": 0
+      }
+    ],
+    "sort": [
+      {
+        "field": "m0",
+        "direction": "desc"
+      }
+    ],
+    "options": {
+      "title": "按币种统计待缴年费笔数"
+    }
   },
   "success": true,
   "data": {
     "type": "chart",
     "dataset": {
       "columns": [
-        { "key": "d0", "label": "受理局国别", "role": "dimension", "field": "officeCountry" },
-        { "key": "m0", "label": "笔数", "role": "measure", "field": "id", "aggregation": "count" }
+        {
+          "key": "d0",
+          "label": "币种",
+          "role": "dimension",
+          "field": "currency"
+        },
+        {
+          "key": "m0",
+          "label": "笔数",
+          "role": "measure",
+          "field": "id",
+          "aggregation": "count"
+        }
       ],
       "dimensionCount": 1,
       "rows": [
-        { "d0": "CN", "m0": 42 },
-        { "d0": "JP", "m0": 11 },
-        { "d0": "KR", "m0": 5 }
+        {
+          "d0": "CNY",
+          "m0": 42
+        },
+        {
+          "d0": "USD",
+          "m0": 11
+        },
+        {
+          "d0": "EUR",
+          "m0": 5
+        }
       ],
       "truncated": false
     },
     "view": {
       "chartType": "bar",
-      "categories": ["CN", "JP", "KR"],
-      "series": [
-        { "name": "笔数", "data": [42, 11, 5] }
+      "categories": [
+        "CNY",
+        "USD",
+        "EUR"
       ],
-      "measureLabels": ["笔数"],
-      "categoryLabel": "受理局国别",
+      "series": [
+        {
+          "name": "笔数",
+          "data": [
+            42,
+            11,
+            5
+          ]
+        }
+      ],
+      "measureLabels": [
+        "笔数"
+      ],
+      "categoryLabel": "币种",
       "isSplit": false
     }
   },
   "error": null,
   "took": 12,
-  "_rendered": "| 受理局国别 | 笔数 |\n| --- | --- |\n| CN | 42 |\n| JP | 11 |\n| KR | 5 |\n\n笔数（每格 ≈ 2.10）\nCN             ████████████████████  42\nJP             █████  11\nKR             ██  5",
+  "_rendered": "| 币种 | 笔数 |\n| --- | --- |\n| CNY | 42 |\n| USD | 11 |\n| EUR | 5 |\n\n笔数（每格 ≈ 2.10）\nCNY            ████████████████████  42\nUSD            █████  11\nEUR            ██  5",
   "_failureSample": {
     "success": false,
     "data": null,
@@ -49,45 +102,102 @@
     "took": 1
   },
   "_listSample": {
-    "_comment": "list_report_datasets 返回（节选）：字段元数据是产出定义的唯一合法取值来源",
+    "_comment": "list_report_datasets 返回（节选，字段名与标签按 0265 的年费费用清单数据集抄录）：字段元数据是产出定义的唯一合法取值来源",
     "items": [
       {
         "id": "patent-fee-ledger",
         "name": "年费费用清单",
-        "description": "一行 = 一个专利的一个应缴年度；金额按币种原币存储，不可跨币种求和",
-        "keywords": ["年费", "费用清单", "台账"],
-        "defaultDimensions": ["feeCalendarYear"],
+        "description": "专利年费费用清单，一行 = 一个专利的一个应缴年度。金额为原币金额，不做汇率折算。不含代理机构 / 申请人 / 国别（那三列属于专利主数据，见 patent-info 数据集）。",
+        "keywords": [
+          "年费",
+          "年费费用",
+          "年费台账",
+          "费用清单",
+          "台账",
+          "应缴年费",
+          "缴费流水",
+          "缴款",
+          "实缴"
+        ],
+        "defaultDimensions": [
+          "feeCalendarYear"
+        ],
         "defaultChartType": "bar",
         "fields": [
-          {
-            "name": "officeCountry",
-            "label": "受理局国别",
-            "dataType": "string",
-            "role": "dimension",
-            "filterable": true
-          },
           {
             "name": "feeCalendarYear",
             "label": "费款所属年",
             "dataType": "number",
             "role": "dimension",
-            "filterable": true
+            "filterable": true,
+            "description": "费款所属公历年 = 该年度「缴费截止日期(滞纳前)」所在公历年。"
+          },
+          {
+            "name": "feeYear",
+            "label": "应缴年度",
+            "dataType": "number",
+            "role": "dimension",
+            "filterable": true,
+            "description": "该专利的第 N 个年费年度（与专利绑定，不随缴费时间变化）。"
           },
           {
             "name": "status",
             "label": "缴纳状态",
             "dataType": "number",
             "role": "dimension",
-            "filterable": true
+            "filterable": true,
+            "description": "0 = 待缴，2 = 已缴，3 = 已放弃。"
           },
           {
-            "name": "amountDue",
-            "label": "应缴金额",
+            "name": "currency",
+            "label": "币种",
+            "dataType": "string",
+            "role": "dimension",
+            "filterable": true,
+            "description": "原币币种（CNY / USD / EUR …）。金额指标必须按币种分组，不可跨币种求和。"
+          },
+          {
+            "name": "dueMonth",
+            "label": "缴费截止月",
+            "dataType": "string",
+            "role": "dimension",
+            "filterable": false,
+            "description": "由「缴费截止日期(滞纳前)」推导的 yyyy-MM（派生列，不支持过滤）。"
+          },
+          {
+            "name": "sourceLabel",
+            "label": "清单行来源标签",
+            "dataType": "string",
+            "role": "dimension",
+            "filterable": false,
+            "description": "这一行的金额是谁定的，中文标签：规则 / 应缴单 / 官方（派生列，不支持过滤）。"
+          },
+          {
+            "name": "id",
+            "label": "笔数",
             "dataType": "number",
             "role": "measure",
-            "aggregations": ["sum", "avg", "min", "max"],
+            "aggregations": [
+              "count"
+            ],
+            "defaultAggregation": "count",
+            "currencyBound": false,
+            "description": "符合条件的费用行数：一笔 = 一个专利的一个应缴年度。"
+          },
+          {
+            "name": "payableAmount",
+            "label": "应付金额",
+            "dataType": "number",
+            "role": "measure",
+            "aggregations": [
+              "sum",
+              "avg",
+              "min",
+              "max"
+            ],
             "defaultAggregation": "sum",
-            "currencyBound": true
+            "currencyBound": true,
+            "description": "应付官费的原币金额（不含滞纳金）。不可跨币种求和。"
           }
         ]
       }

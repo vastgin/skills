@@ -38,7 +38,7 @@ patent-fee-charts/          # 专利年费分析图表（终端渲染）
 ├── examples/
 │   └── sample-output.json           # query_report 返回样例（含终端渲染结果）
 └── references/
-    ├── report-definition-playbook.md # 报表定义剧本：字段白名单、常用问法、口径纪律
+    ├── report-definition-playbook.md # 报表定义剧本：字段快照、常用问法、口径纪律
     ├── terminal-render-rules.md      # 图表 → 终端文本的降级规则
     └── scripts/
         └── render_chart.py           # 调 query_report 并把结果渲染成终端文本
@@ -50,7 +50,7 @@ patent-fee-charts/          # 专利年费分析图表（终端渲染）
 |---|---|---|
 | `patent-fee-monitor` | 从国家知识产权局（CNIPA）案件查询平台采集已授权专利的年费数据（著录、授权公告日、未缴年费前 2 条、已缴年费前 2 条、滞纳金阶梯），经 MCP 推送到 SaaS 年费监控产品 | [`patent-fee-monitor/SKILL.md`](patent-fee-monitor/SKILL.md) |
 | `patent-fee-briefing` | 随时播报待缴年费概览（指标区四档 + 截止日升序明细），内容与 SaaS「年费周报」邮件预览的功能区块完全一致；**只读**，经 MCP `get_fee_weekly_report` 取数 | [`patent-fee-briefing/SKILL.md`](patent-fee-briefing/SKILL.md) |
-| `patent-fee-charts` | 用与智小勤**同一条链路**的报表引擎做年费分析（按国别/年度/状态/币种分组），把图表降级成终端可读的表格与字符条形图；**只读**，经 MCP `list_report_datasets` + `query_report` 取数 | [`patent-fee-charts/SKILL.md`](patent-fee-charts/SKILL.md) |
+| `patent-fee-charts` | 用与智小勤**同一条链路**的报表引擎做年费分析（按年度/状态/币种/来源标签分组），把图表降级成终端可读的表格与字符条形图；**只读**，经 MCP `list_report_datasets` + `query_report` 取数 | [`patent-fee-charts/SKILL.md`](patent-fee-charts/SKILL.md) |
 
 ## 安装使用
 
