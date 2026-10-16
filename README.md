@@ -42,6 +42,20 @@ patent-fee-charts/          # 专利年费分析图表（终端渲染）
     ├── terminal-render-rules.md      # 图表 → 终端文本的降级规则
     └── scripts/
         └── render_chart.py           # 调 query_report 并把结果渲染成终端文本
+patent-search-report/        # 专利检索报告（Google Patents 检索 + 著录抓取）
+├── SKILL.md
+├── references/
+│   ├── browser-skill-setup.md     # BrowserSkill 依赖检查与安装引导
+│   ├── query-syntax.md           # 检索语法与过滤条件
+│   ├── field-map.md              # 著录字段口径与来源说明
+│   └── troubleshooting.md        # 故障分级处置
+└── scripts/
+    ├── bsk_common.py             # 环境探测与会话复用
+    ├── gp_util.py                # Google Patents 解析工具
+    ├── search.py                 # 检索 → 公开号清单
+    ├── detail.py                 # 公开号/申请号 → 完整著录项
+    ├── collect.py                # 检索 → 前 N 条详情，一步到位
+    └── js/                       # 页面内注入脚本（search.js / detail.js）
 ```
 
 ## 技能一览
@@ -51,6 +65,7 @@ patent-fee-charts/          # 专利年费分析图表（终端渲染）
 | `patent-fee-monitor` | 从国家知识产权局（CNIPA）案件查询平台采集已授权专利的年费数据（著录、授权公告日、未缴年费前 2 条、已缴年费前 2 条、滞纳金阶梯），经 MCP 推送到 SaaS 年费监控产品 | [`patent-fee-monitor/SKILL.md`](patent-fee-monitor/SKILL.md) |
 | `patent-fee-briefing` | 随时播报待缴年费概览（指标区四档 + 截止日升序明细），内容与 SaaS「年费周报」邮件预览的功能区块完全一致；**只读**，经 MCP `get_fee_weekly_report` 取数 | [`patent-fee-briefing/SKILL.md`](patent-fee-briefing/SKILL.md) |
 | `patent-fee-charts` | 用与智小勤**同一条链路**的报表引擎做年费分析（按年度/状态/币种/来源标签分组），把图表降级成终端可读的表格与字符条形图；**只读**，经 MCP `list_report_datasets` + `query_report` 取数 | [`patent-fee-charts/SKILL.md`](patent-fee-charts/SKILL.md) |
+| `patent-search-report` | 在 Google Patents（免费、免登录）按关键词/申请人/发明人/日期检索专利取回公开号，进详情页抓取完整著录项（标题、申请人、发明人、各类日期、分类号、同族、引用、法律状态、摘要等），汇成一份检索报告；**只读**，浏览器操作依赖 BrowserSkill | [`patent-search-report/SKILL.md`](patent-search-report/SKILL.md) |
 
 ## 安装使用
 
@@ -81,6 +96,16 @@ python3 references/scripts/push_mcp.py --dir out --dry-run            # 上报�
 ```
 
 脚本跨平台（纯 Python + 页面 JS），Windows 用 `install.ps1` 装 `bsk.exe` 并在 Git Bash 或 PowerShell 中运行。
+
+`patent-search-report` 同样依赖 BrowserSkill（数据源是 Google Patents 公开数据，**无需 SaaS token**）：
+
+```sh
+cd patent-search-report
+python3 scripts/search.py --query "充电桩 液冷" --country CN --limit 20 --format table   # 检索，拿公开号
+python3 scripts/detail.py CN114630558B --lang zh --with-claims                          # 已知公开号取著录项
+python3 scripts/collect.py --query "固态电池 电解质" --country CN --limit 20 \
+        --detail-limit 10 --lang zh --out /tmp/report.json                               # 检索 + 详情一步到位
+```
 
 `patent-fee-briefing` 与 `patent-fee-charts` 是**只读**技能，不需要 BrowserSkill，
 只依赖 MCP 配置（同一份 `~/.workbuddy/mcp.json`，server 名 `IPBuddy-Server`）：
